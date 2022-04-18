@@ -9,7 +9,8 @@ PARAMETERS: uname       TYPE uname MATCHCODE OBJECT o2username OBLIGATORY,
             pw          TYPE char40 LOWER CASE OBLIGATORY,
             pw_rep      TYPE char40 LOWER CASE OBLIGATORY,
             iter(4)     TYPE n DEFAULT 1024 OBLIGATORY,
-            salt_len(3) TYPE n DEFAULT 96 OBLIGATORY.
+            salt_len(3) TYPE n DEFAULT 96 OBLIGATORY,
+            pw_init     AS CHECKBOX DEFAULT 'X'.
 
 AT SELECTION-SCREEN OUTPUT.
 
@@ -57,14 +58,17 @@ end-of-SELECTION.
       output = base64_pw_and_salt.
 
 
-  DATA(final_string) = |\{x-issha, 1024\}{ base64_pw_and_salt }|.
+  DATA(final_string) = |\{x-issha, { iter }\}{ base64_pw_and_salt }|.
 
   UPDATE usr02 SET locnt = 0,
-                   pwdchgdate = 0,
-                   gltgv = @( CONV d( |{ sy-datum - 1 }| ) ),
+                   pwdchgdate = @( SWITCH #( pw_init WHEN 'X' THEN sy-datum ELSE '' ) ),
+                   gltgv = @( CONV #( sy-datum - 1 ) ),
                    gltgb = '99991231',
-                   pwdinitial = 2,
+                   pwdinitial = @( SWITCH #( pw_init WHEN 'X' THEN 1 ELSE 2 ) ),
                    pwdlockdate = @( VALUE d( ) ),
+                   PWDLGNDATE = @( VALUE d( ) ),
+                   pwdstate = 0,
+                   ltime = @( SWITCH #( pw_init WHEN 'X' THEN value #( ) ELSE sy-uzeit ) ),
                    uflag = 0,
                    pwdsaltedhash = @final_string,
                    codvn = 'H'
